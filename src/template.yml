@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Template for VPC
 
 Resources:
-  RAG-VPC:
+  RagVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
@@ -17,7 +17,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: 10.0.0.0/24
-      VpcId: !Ref RAG-VPC
+      VpcId: !Ref RagVPC
       AvailabilityZone: !Select [ 0, !GetAZs ]
       MapPublicIpOnLaunch: true
       Tags:
@@ -28,40 +28,40 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: 10.0.2.0/24
-      VpcId: !Ref RAG-VPC
+      VpcId: !Ref RagVPC
       AvailabilityZone: !Select [ 0, !GetAZs ]
       Tags:
         - Key: Name
           Value: PrivateSubnet1
 
-  RAG-VPCIGW:
+  RagVPCIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: rag-test
   
-  RAG-VPCIGWAttach:
+  RagVPCIGWAttach:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      InternetGatewayId: !Ref RAG-VPCIGW
-      VpcId: !Ref RAG-VPC
+      InternetGatewayId: !Ref RagVPCIGW
+      VpcId: !Ref RagVPC
   
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref RAG-VPC
+      VpcId: !Ref RagVPC
       Tags:
         - Key: Name
           Value: Public Route
 
   PublicRoute:
     Type: AWS::EC2::Route
-    DependsOn: RAG-VPCIGW
+    DependsOn: RagVPCIGW
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref RAG-VPCIGW
+      GatewayId: !Ref RagVPCIGW
 
   PublicSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
