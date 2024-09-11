@@ -41,12 +41,14 @@ Resources:
         - Key: Name
           Value: rag-test
   
+  # Attach InternetGateway to RagVPC
   RagVPCIGWAttach:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref RagVPCIGW
       VpcId: !Ref RagVPC
   
+  # Create RouteTable
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -55,6 +57,7 @@ Resources:
         - Key: Name
           Value: Public Route
 
+  # 0.0.0.0/0へのアウトバウンド通信はInternetGatewayへルーティング
   PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: RagVPCIGW
@@ -63,6 +66,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref RagVPCIGW
 
+  # PublicSubnet1をRouteTableに関連図ける
   PublicSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
