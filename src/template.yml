@@ -72,3 +72,32 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet1
       RouteTableId: !Ref PublicRouteTable
+  
+  IamGroupDemo:
+    Type: AWS::IAM::Group
+    Properties:
+      GruopName: "iamgroup-demo"
+
+  
+  IamPolicyDemo:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "bedrock-rag-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "iam:IAMFullAccess"
+              - "ec2:AmazonVPCFullAccess"
+              - "ec2:AmazonEC2FullAccess"
+              - "ecs:AmazonECS_FullAccess"
+              - "ecr:AmazonEC2ContainerRegistryFullAccess"
+              - "dynamodb:AmazonDynamoDBFullAccess"
+              - "bedrock:AmazonBedrockFullAccess"
+              - "aws-marketplace:AWSMarketplaceFullAccess"
+            Resource:
+              - !Sub "arn:aws:iam::778421944754:user/udemy_test"
+    Groups:
+      - !Ref IamGroupDemo
+    
