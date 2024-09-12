@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Template for VPC
+Description: Template for Bedrock RAG Application
 
 Resources:
+  # Create VPC
   RagVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -34,6 +35,7 @@ Resources:
         - Key: Name
           Value: PrivateSubnet1
 
+  # Create IGW
   RagVPCIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -57,7 +59,7 @@ Resources:
         - Key: Name
           Value: Public Route
 
-  # 0.0.0.0/0へのアウトバウンド通信はInternetGatewayへルーティング
+  
   PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: RagVPCIGW
@@ -66,38 +68,56 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref RagVPCIGW
 
-  # PublicSubnet1をRouteTableに関連図ける
+  
   PublicSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet1
       RouteTableId: !Ref PublicRouteTable
-  
-  IamGroupDemo:
-    Type: AWS::IAM::Group
-    Properties:
-      GruopName: "iamgroup-demo"
 
-  
-  IamPolicyDemo:
-    Type: AWS::IAM::Policy
+  # DynamoDB
+  BscDB:
+    Type: AWS::DynamoDB::Table
     Properties:
-      PolicyName: "bedrock-rag-policy"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - "iam:IAMFullAccess"
-              - "ec2:AmazonVPCFullAccess"
-              - "ec2:AmazonEC2FullAccess"
-              - "ecs:AmazonECS_FullAccess"
-              - "ecr:AmazonEC2ContainerRegistryFullAccess"
-              - "dynamodb:AmazonDynamoDBFullAccess"
-              - "bedrock:AmazonBedrockFullAccess"
-              - "aws-marketplace:AWSMarketplaceFullAccess"
-            Resource:
-              - !Sub "*"
-    Groups:
-      - !Ref IamGroupDemo
-    
+      TableName: "bsc_db"
+      # Item
+      AttributeDefinitions:
+        - AttributeName: "SessionId"
+          AttributeType: "S"
+      # PrimaryKey
+      KeySchema:
+        - AttributeName: "SessionId"
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: "1"
+        WriteCapacityUnits: "1"
+
+  # Create ECR Repository
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "bedrock-rag"
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: >
+          {
+            "rules": [
+              {
+                "action": {
+                  "type": "expire"
+                },
+                "selection": {
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10,
+                  "tagStatus": "any"
+                },
+                "description": "delete old images more than 10 images",
+                "rulePriority": 1
+              }
+            ]
+          }
+        RegistryId: !Ref AWS::AccountId
+      Tags:
+        - Key: Name
+          Value: "bedrock-rag"
+      
