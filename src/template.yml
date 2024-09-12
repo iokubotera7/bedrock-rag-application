@@ -97,7 +97,7 @@ Resources:
               - "bedrock:AmazonBedrockFullAccess"
               - "aws-marketplace:AWSMarketplaceFullAccess"
             Resource:
-              - !Sub "arn:aws:iam::778421944754:user/udemy_test"
+              - !Sub "*"
     Groups:
       - !Ref IamGroupDemo
     
