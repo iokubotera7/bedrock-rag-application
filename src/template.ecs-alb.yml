@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for Bedrock Application ECS and ALB
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: ECS Configuration
+        Parameters:
+          - DockerImageURL
+    ParameterLabels:
+      DockerImageURL:
+        default: Docker Image URL
+
+# --------------------------------------------------#
+# Input Parameters
+# --------------------------------------------------#   
+Parameters:
+  DockerImageURL:
+    Type: String
+    Default: none
+
+Resources:
+  # --------------------------------------------------#
+  # IAM Role
+  # --------------------------------------------------#
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      # IAMロールの信頼ポリシーの定義
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+      Policies:
+        - PolicyName: BedrockECRTaskPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:*
+                  - dynamodb:*
+                Resource: '*'
+      RoleName: bsc-task-role
+
+  # --------------------------------------------------#
+  # ECS
+  # --------------------------------------------------#
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: ecs-cls
+  
+  EcsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: "/ecs/logs/bedrock-ecs-group"
+  
+  # タスク定義
+  EcsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Name: bedrock-container # コンテナ名
+          Image: !Ref DockerImageURL # DockerイメージURL
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole"
+      TaskRoleArn: !Ref ECSTaskRole
+      Family: bedrock-container
+      NetworkMode: awsvpc
+      RequiresCompatibilities: ["FARGATE"]
+      Cpu: 1024
+      Memory: 2048
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+
+  # サービス
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ListenerResource
+    Properties:
+      Cluster: !Ref EcsCluster
+      ServiceName: EcsService
+      TaskDefinition: !Ref EcsTaskDefinition
+      DesiredCount: 1
+      EnableExecuteCommand: false
+      # データプレーンの起動タイプをFargateを指定
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - { Fn::ImportValue: ecs-sg-id }
+          Subnets:
+            - { Fn::ImportValue: private-subnet-a-id }
+            - { Fn::ImportValue: private-subnet-c-id }
+      # ロードバランサとの連携
+      LoadBalancers:
+        - ContainerName: bedrock-container
+          ContainerPort: 80
+          TargetGroupArn: !Ref TargetGroupResource
+      Tags:
+        - Key: Name
+          Value: bedrock-ecs-service
+
+  
+  # --------------------------------------------------#
+  # TargetGroup
+  # --------------------------------------------------#
+  TargetGroupResource:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: { Fn::ImportValue: rag-vpc-id }
+      Name: bedrock-target-group
+      Protocol: HTTP
+      Port: 80
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: "/"
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 20
+      HealthCheckIntervalSeconds: 30
+      Matcher: 
+        HttpCode: 200
+      Tags:
+        - Key: Name
+          Value: bedrock-tg
+
+  # --------------------------------------------------#
+  # ALB
+  # --------------------------------------------------#
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: bedrock-alb
+      # パブリックサブネットのみ配置可という意味
+      Scheme: internet-facing
+      # ALBを指定
+      Type: application
+      Subnets:
+        - { Fn::ImportValue: public-subnet-a-id }
+        - { Fn::ImportValue: public-subnet-c-id }
+      SecurityGroups:
+        - { Fn::ImportValue: alb-sg-id }
+      IpAddressType: ipv4
+      Tags:
+        - Key: Name
+          Value: bedrock-alb
+  
+  # Listener
+  ListenerResource:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroupResource
+          Type: forward
+
+Outputs:
+  ALBOutputDNSName:
+    Value: !GetAtt ALB.DNSName
+    Export:
+      Name: alb-dnsname
+  ALBOutputHsotZone:
+    Value: !GetAtt ALB.CanonicalHostedZoneID
+    Export:
+      Name: alb-hostzoneid
+
+  
+

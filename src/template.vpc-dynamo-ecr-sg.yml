@@ -1,0 +1,448 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for Bedrock Application VPC
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VpcCidr
+          - PublicSubnetACidr
+          - PublicSubnetCCidr
+          - PrivateSubnetACidr
+          - PrivateSubnetCCidr
+    ParameterLabels:
+      VpcCidr:
+        default: VPC CIDR
+      PublicSubnetACidr:
+        default: Public SubnetA CIDR
+      PublicSubnetBCidr:
+        default: Public SubnetC CIDR
+      PrivateSubnetACidr:
+        default: Private SubnetA CIDR
+      PrivateSubnetBCidr:
+        default: Private SubnetC CIDR
+
+# --------------------------------------------------#
+# Input Parameters
+# --------------------------------------------------#   
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnetACidr:
+    Type: String
+    Default: 10.0.0.0/24
+
+  PublicSubnetCCidr:
+    Type: String
+    Default: 10.0.2.0/24
+
+  PrivateSubnetACidr:
+    Type: String
+    Default: 10.0.1.0/24
+
+  PrivateSubnetCCidr:
+    Type: String
+    Default: 10.0.3.0/24
+
+Resources:
+
+  # --------------------------------------------------#
+  # VPC
+  # --------------------------------------------------#
+
+  # Create VPC
+  RagVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      InstanceTenancy: default
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: rag-test
+
+  # --------------------------------------------------#
+  # Subnet
+  # --------------------------------------------------#
+
+  # Create PublicSubnet1
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PublicSubnetACidr
+      VpcId: !Ref RagVPC
+      AvailabilityZone: ap-northeast-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnetA
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateSubnetACidr
+      VpcId: !Ref RagVPC
+      AvailabilityZone: ap-northeast-1a
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetA
+
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PublicSubnetCCidr
+      VpcId: !Ref RagVPC
+      AvailabilityZone: ap-northeast-1c
+      Tags:
+        - Key: Name
+          Value: PublicSubnetC
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateSubnetCCidr
+      VpcId: !Ref RagVPC
+      AvailabilityZone: ap-northeast-1c
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetC
+
+  # -----------------------------------------#
+  # Internet Gateway
+  # -----------------------------------------#
+
+  # Create IGW
+  RagVPCIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: rag-test
+
+  # Attach InternetGateway to RagVPC
+  RagVPCIGWAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref RagVPCIGW
+      VpcId: !Ref RagVPC
+
+  # ---------------------------------------------------#
+  # RouteTable
+  # ---------------------------------------------------#
+
+  # Create RouteTable
+  PublicRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RagVPC
+      Tags:
+        - Key: Name
+          Value: Public Route-A
+
+  PublicRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RagVPC
+      Tags:
+        - Key: Name
+          Value: Public Route-C
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RagVPC
+      Tags:
+        - Key: Name
+          Value: Private Route-A
+
+  PrivateRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RagVPC
+      Tags:
+        - Key: Name
+          Value: Private Route-C
+
+  # -----------------------------------------------------#
+  # Routing
+  # -----------------------------------------------------#
+
+
+  PublicRouteA:
+    Type: AWS::EC2::Route
+    DependsOn: RagVPCIGW
+    Properties:
+      RouteTableId: !Ref PublicRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref RagVPCIGW
+
+  PublicRouteC:
+    Type: AWS::EC2::Route
+    DependsOn: RagVPCIGW
+    Properties:
+      RouteTableId: !Ref PublicRouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref RagVPCIGW
+
+  # -----------------------------------------------------#
+  # RouteTable Associate
+  # -----------------------------------------------------#
+
+  # Attach RouteTable to PublictSubnet1
+  PublicSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTableA
+
+  PublicSubnetCAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref PublicRouteTableC
+
+  PrivateSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetCAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetC
+      RouteTableId: !Ref PrivateRouteTableC
+
+  # --------------------------------------------------#
+  # VPC S3 Endpoint
+  # --------------------------------------------------#
+  VPCS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PrivateRouteTableA
+        - !Ref PrivateRouteTableC
+      VpcId: !Ref RagVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+
+  # --------------------------------------------------#
+  # VPC DynamoDB Endpoint
+  # --------------------------------------------------#
+  VPCDynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PrivateRouteTableA
+        - !Ref PrivateRouteTableC
+      VpcId: !Ref RagVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcEndpointType: Gateway
+
+  # --------------------------------------------------#
+  # VPC ECR Endpoint
+  # --------------------------------------------------#
+  VPCECRdkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.dkr
+      VpcId: !Ref RagVPC
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetC
+      SecurityGroupIds:
+        - !Ref VPCEndpointSG
+
+  VPCECRapiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.api
+      VpcId: !Ref RagVPC
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetC
+      SecurityGroupIds:
+        - !Ref VPCEndpointSG
+
+  # --------------------------------------------------#
+  # VPC CloudWatch Logs Endpoint
+  # --------------------------------------------------#
+  VPCCloudWatchLogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.logs
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetC
+      VpcId: !Ref RagVPC
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref VPCEndpointSG
+
+  # --------------------------------------------------#
+  # VPC Bedrock Endpoint
+  # --------------------------------------------------#
+  VPCBedrockEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.bedrock-runtime
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetC
+      VpcId: !Ref RagVPC
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref VPCEndpointSG
+
+  # --------------------------------------------------#
+  # Security Group
+  # --------------------------------------------------#
+
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: for alb
+      GroupName: ecs-test-sg-alb
+      # Inbound
+      SecurityGroupIngress:
+        - FromPort: 80
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: ecs-test-sg-alb
+      VpcId: !Ref RagVPC
+
+  ECSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: for ecs
+      GroupName: test-sg-ecs
+      # Inbound
+      SecurityGroupIngress:
+        - FromPort: 80
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ALBSG
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: ecs-test-sg-ecs
+      VpcId: !Ref RagVPC
+
+  VPCEndpointSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: for VPC Endpoint
+      GroupName: ecs-test-vpc-endpoint-sg
+      # Outbound
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      # Inbound
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref ECSSG
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: ecs-test-vpc-endpoint-sg
+      VpcId: !Ref RagVPC
+
+  # --------------------------------------------------#
+  # DynamoDB
+  # --------------------------------------------------#
+
+  # DynamoDB
+  BscDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: bsc_db
+      # Item
+      AttributeDefinitions:
+        - AttributeName: SessionId
+          AttributeType: S
+      # PrimaryKey
+      KeySchema:
+        - AttributeName: SessionId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  # --------------------------------------------------#
+  # ECR
+  # --------------------------------------------------#
+
+  # Create ECR Repository
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: bedrock-rag
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "action": {
+                  "type": "expire"
+                },
+                "selection": {
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10,
+                  "tagStatus": "any"
+                },
+                "description": "delete old images more than 10 images",
+                "rulePriority": 1
+              }
+            ]
+          }
+        RegistryId: !Ref AWS::AccountId
+      Tags:
+        - Key: Name
+          Value: bedrock-rag
+
+Outputs:
+  RagVPC:
+    Value: !Ref RagVPC
+    Export:
+      Name: rag-vpc-id
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: public-subnet-a-id
+  PublicSubnetC:
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: public-subnet-c-id
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: private-subnet-a-id
+  PrivateSubnetC:
+    Value: !Ref PrivateSubnetC
+    Export:
+      Name: private-subnet-c-id
+  ALBSG:
+    Value: !Ref ALBSG
+    Export:
+      Name: alb-sg-id
+  ECSSG:
+    Value: !Ref ECSSG
+    Export:
+      Name: ecs-sg-id

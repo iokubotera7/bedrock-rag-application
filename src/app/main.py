@@ -28,8 +28,8 @@ if "chain" not in st.session_state:
 
     # チャット用LLMを定義
     chat = ChatBedrock(
-        model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
-        model_kwargs={"max_tokens": 4000}, streaming=True,
+        model_id="anthropic.claude-v2:1",
+        model_kwargs={"max_tokens": 4000}, streaming=True
     )
 
     # チェーンを定義
