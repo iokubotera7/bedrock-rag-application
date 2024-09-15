@@ -36,7 +36,7 @@ if "chain" not in st.session_state:
     st.session_state.chain = prompt | chat
 
 # タイトルを画面表示
-st.title("Bedrockと話そう！")
+st.title("Bedrockアプリケーション")
 
 # 履歴クリアボタンを画面表示
 if st.button("履歴クリア"):

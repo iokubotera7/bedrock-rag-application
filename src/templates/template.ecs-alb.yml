@@ -8,15 +8,56 @@ Metadata:
           default: ECS Configuration
         Parameters:
           - DockerImageURL
+      - Label:
+          default: ACMCertificateArn
+        Parameters:
+          - ACMCertificateArn
+      - Label:
+          default: Route53 Configuration
+        Parameters:
+          - HostZoneID
+          - DomainName
+      - Label:
+          default: ELBSecurityPolicy
+        Parameters:
+          - ELBSecurityPolicy
     ParameterLabels:
       DockerImageURL:
         default: Docker Image URL
+      ACMCertificateArn:
+        default: ACMCertificateArn
+      HostZoneID:
+        default: HostZoneID
+      ELBSecurityPolicy:
+        default: ELBSecurityPolicy
+      DomainName:
+        default: DomainName
 
 # --------------------------------------------------#
 # Input Parameters
 # --------------------------------------------------#   
 Parameters:
   DockerImageURL:
+    Type: String
+    Default: none
+  
+  ACMCertificateArn:
+    Description: "Enter the Certificate ARN"
+    Type: String
+    Default: none
+  
+  HostZoneID:
+    Description: "Select the Route53 hosted zone ID"
+    Type: AWS::Route53::HostedZone::Id
+
+  ELBSecurityPolicy:
+    Type: String
+    AllowedValues:
+      - ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+      - ELBSecurityPolicy-TLS13-1-2-2021-06
+
+  DomainName:
+    Description: "Enter the Route53 domain name"
     Type: String
     Default: none
 
@@ -86,7 +127,7 @@ Resources:
   EcsService:
     Type: AWS::ECS::Service
     DependsOn:
-      - ListenerResource
+      - ALBListenerHTTPS
     Properties:
       Cluster: !Ref EcsCluster
       ServiceName: EcsService
@@ -158,15 +199,32 @@ Resources:
           Value: bedrock-alb
   
   # Listener
-  ListenerResource:
+  ALBListenerHTTPS:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ALB
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref ACMCertificateArn
+      SslPolicy: !Ref ELBSecurityPolicy
       DefaultActions:
         - TargetGroupArn: !Ref TargetGroupResource
           Type: forward
+  
+  # --------------------------------------------------#
+  # Route53
+  # --------------------------------------------------#
+  ALBAliasRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostZoneID
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: !GetAtt ALB.CanonicalHostedZoneID
+        DNSName: !GetAtt ALB.DNSName
+
 
 Outputs:
   ALBOutputDNSName:

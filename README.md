@@ -14,7 +14,7 @@
 
 ## 概要
 Amazon Bedrockを用いたチャットボットアプリになります。  
-こちらのQiitaの記事を参考にしながら、CloudFormationで実装したシステムになります。  
+こちらの[Qiita](https://qiita.com/minorun365/items/84bef6f06e450a310a6a)の記事を参考にしながら、CloudFormationで実装したシステムになります。  
 
 ### アプリケーションのイメージ
 
@@ -42,6 +42,4 @@ Amazon Bedrockを用いたチャットボットアプリになります。
 
 ## 今後の展望
 
-* Route53, ACMを用いたHTTPS対応
-* Cognitoを用いたユーザー認証機能
 * Knowledge Baseを用いたRAG機能の追加

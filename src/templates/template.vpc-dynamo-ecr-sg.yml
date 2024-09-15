@@ -316,10 +316,10 @@ Resources:
       GroupName: ecs-test-sg-alb
       # Inbound
       SecurityGroupIngress:
-        - FromPort: 80
+        - FromPort: 443
           IpProtocol: tcp
           CidrIp: 0.0.0.0/0
-          ToPort: 80
+          ToPort: 443
       Tags:
         - Key: Name
           Value: ecs-test-sg-alb
