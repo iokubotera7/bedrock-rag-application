@@ -209,7 +209,17 @@ Resources:
         - CertificateArn: !Ref ACMCertificateArn
       SslPolicy: !Ref ELBSecurityPolicy
       DefaultActions:
+        # Cognitoへのルーティング
+        - AuthenticateCognitoConfig: 
+              UserPoolArn: { Fn::ImportValue: user-pool-arn }
+              UserPoolClientId: { Fn::ImportValue: user-pool-client-id }
+              UserPoolDomain: bedrock-1234
+              OnUnauthenticatedRequest: authenticate
+          Order: 1
+          Type: "authenticate-cognito"
+        # ターゲットグループへのルーティング
         - TargetGroupArn: !Ref TargetGroupResource
+          Order: 2
           Type: forward
   
   # --------------------------------------------------#

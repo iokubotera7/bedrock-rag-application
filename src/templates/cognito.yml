@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Resources:
+  # ユーザープール作成
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: test # ユーザープール名
+      UsernameAttributes:
+        - email # Eメールでのサインインを有効化する場合はemailを指定
+      AccountRecoverySetting: # ユーザーがパスワードを忘れた場合の対処
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      MfaConfiguration: 'ON' # MFAの有効化設定
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA # アプリケーションでのMFA
+      AutoVerifiedAttributes:
+        - email
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+  
+  # ユーザープールドメイン作成(Cognitoドメインを作成)
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: bedrock-1234
+      UserPoolId: !Ref UserPool
+  
+  # ユーザープールにアプリクライアントを作成
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: test-app-client
+      GenerateSecret: true # クライアントシークレット
+      RefreshTokenValidity: 30
+      CallbackURLs:
+        - https://udemyiossutest.com/oauth2/idpresponse
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      UserPoolId: !Ref UserPool
+      SupportedIdentityProviders:
+        - COGNITO
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - phone
+
+Outputs:
+  UserPool:
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: user-pool-arn
+  UserPoolClient:
+    Value: !GetAtt UserPoolClient.ClientId
+    Export:
+      Name: user-pool-client-id
+  UserPoolDomain:
+    Value: !GetAtt UserPoolDomain.CloudFrontDistribution
+    Export:
+      Name: user-pool-domain
