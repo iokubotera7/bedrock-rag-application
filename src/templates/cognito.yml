@@ -36,8 +36,8 @@ Resources:
       ClientName: test-app-client
       GenerateSecret: true # クライアントシークレット
       RefreshTokenValidity: 30
-      CallbackURLs:
-        - https://udemyiossutest.com/oauth2/idpresponse
+      CallbackURLs: # コールバックURL。Route53で取得したFQDN + /oauth2/idpresponseを入力する。
+        - https://hogehoge.com/oauth2/idpresponse
       ExplicitAuthFlows:
         - ALLOW_ADMIN_USER_PASSWORD_AUTH
         - ALLOW_USER_SRP_AUTH
